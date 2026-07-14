@@ -26,6 +26,10 @@ The initial implementation should keep these boundaries:
   -> platform linker and ABI
 ```
 
+Precompiled PAGEs store their interfaces and reusable representations in the
+versioned `.then` container described by `then-format.md`. Loose source enters the
+same pipeline at runtime without being persisted as a compiled page.
+
 - C is a required interoperability boundary, not the semantic definition of The.
 - Assembly is a supported implementation layer for scheduled operations and the
   runtime, isolated by architecture and calling convention.
