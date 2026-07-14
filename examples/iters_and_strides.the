@@ -52,7 +52,7 @@ PROC countdown
     | Expected outcome: [5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1]
 
     ITER number2 throughstride (end1, 1, stride2):
-    PUT number2 into list_stride_neat
+    PUT number2 into list_stride_descending_out_of_range
     ITEREND
     | Expected outcome: [5, 4.3, 3.6, 2.9, 2.2, 1.5, 0.8, 0.1]  
 
