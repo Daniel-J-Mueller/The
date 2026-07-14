@@ -1,0 +1,33 @@
+|| Generate every prime number from 2 through 100. ||
+
+PAGE primes
+PROC primes
+    OBJ limit = 100
+    numbers = [2]
+
+    ITER number throughint (3, limit)
+        OBJ prime = TRUE
+
+        ITER divisor throughint (2, number - 1)
+            IF (number % divisor == 0)
+                prime = FALSE
+                STOP
+            IFEND
+        ITEREND
+
+        IF (prime)
+            PUT number into numbers at end
+        IFEND
+    ITEREND
+
+    OUT("Prime numbers through", limit)
+    ITER prime_number in numbers
+        OUT(prime_number)
+    ITEREND
+
+    RETURN numbers as prime_..
+    numbers
+PROCEND
+PAGEEND primes
+
+ENTRY primes

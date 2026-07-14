@@ -1,0 +1,70 @@
+|| Count from 3 through 1, 1 to 3, insert into list in order,  ||
+
+PAGE countdown
+PROC countdown
+    OUT(OPEN.test_OUT) | This prints the message when this process is run. It is out in the..
+     open, therefore it is OPEN. If it belonged to a PROC, it would be labeled by the PROC label.varname
+
+    OBJ start = 3
+    OBJ end1 = 5
+    OBJ stride1 = 0.5
+    OBJ stride2 = 0.7
+
+    list_descend = []
+    list_ascend = []
+
+    list_value1 = [1.5, 2.7, 0.3]
+    list_value2 = [0.3, 1.5, 2.7]
+
+    list_stride_neat = []
+    list_stride_out_of_range = []
+    list_stride_descending_neat = []
+    list_stride_descending_out_of_range = []
+
+    ITER number1 throughint (start, 1).
+    PUT number1 into list_descend at end
+    PUT number1 into list_ascend at beginning
+    PUT number1 into list_value1 at value
+    PUT number1 into list_value2 at value
+    ITEREND
+
+    ||
+    Expected outcomes:
+    list_descend = [3, 2, 1]
+    list_ascend = [1, 2, 3]
+    list_value1 = [1, 1.5, 2, 2.7, 0.3, 3]
+    list_value2 = [0.3, 1, 1.5, 2, 2.7, 3]
+    ||
+
+    ITER number2 throughstride (1, end1, stride1)
+    PUT number2 into list_stride_neat
+    ITEREND
+    | Expected outcome: [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
+
+    ITER number2 throughstride (1, end1, stride2)
+    PUT number2 into list_stride_neat
+    ITEREND
+    | Expected outcome: [1, 1.7, 2.4, 3.1, 3.8, 4.5]
+
+    ITER number2 throughstride (end1, 1, stride1)
+    PUT number2 into list_stride_neat
+    ITEREND
+    | Expected outcome: [5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1]
+
+    ITER number2 throughstride (end1, 1, stride2)
+    PUT number2 into list_stride_neat
+    ITEREND
+    | Expected outcome: [5, 4.3, 3.6, 2.9, 2.2, 1.5, 0.8, 0.1]  
+
+    RETURN [list_descend, list_ascend, list_value1, list_value2, list_strid..
+    e_neat, list_stride_out_of_range, list_stride_descending_neat, list_stride_descending..
+    _out_of_range] as bulk_outputs
+PROCEND
+PAGEEND countdown
+
+ENTRY countdown | ENTRY is a universal entry point. It can be anywhere as long as it is outside of ..
+PROCs, PAGEs, etc.
+
+test_OUT = "hi there. Let's begin!"
+
+OUT bulk_outputs | This prints to console.

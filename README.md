@@ -6,6 +6,114 @@ This repository will develop a language from its specification and lowest-level 
 
 The project is currently in the **requirements and design phase**. Nothing in this document should be read as a claim that an implementation already exists. Decisions that affect compatibility must be documented before code makes them accidental.
 
+## Core compilation model
+
+The language will use three related units: **chunks**, **pages**, and **books**.
+
+- A **chunk** is a named, explicitly bounded region of source code. Its opening and closing rows identify the chunk by name.
+- A **page** is the reusable precompiled artifact produced from a chunk.
+- A **book** is a precompiled runbook containing an ahead-of-time reference map for all pages used by a program.
+
+Source inside a chunk may reuse its existing page when the chunk hash and all compilation dependencies remain valid. If the chunk's effective input changes, that chunk is recompiled when the script runs and its page cache entry is replaced or versioned. Source outside chunks is not persisted as a page and is compiled at runtime on each script run.
+
+Packages are collections of pages plus the metadata needed to discover, validate, link, and use them. The toolchain must automatically determine which pages a program actually uses and establish unambiguous references between them. A book stores this resolved reference information ahead of time so subsequent execution can avoid repeating discovery work and can represent repeated page references compactly.
+
+Conceptually:
+
+```text
+source
+  |-- chunk A --hash valid----> reuse page A ----\
+  |              `-hash changed-> compile page A --+-> resolve used pages -> run
+  |-- chunk B ----------------> compile/reuse B --/
+  `-- loose source ------------> runtime compile --/
+
+book = precompiled runbook + resolved page reference table
+```
+
+These terms describe required behavior, not yet a file format or surface syntax.
+
+### Chunk requirements
+
+- Every chunk must have a name and matching, syntactically explicit opening and closing rows.
+- Chunk names must be unique within their defined namespace; the specification must define that namespace and canonical name format.
+- Boundary mismatches, accidental nesting, duplicate names, and illegal cross-boundary constructs must produce precise diagnostics.
+- The grammar must state whether chunks may nest. Unless a later proposal demonstrates a sound need, the initial design should prohibit nesting.
+- A chunk must form a compilation unit with explicit inputs, outputs, imports, exports, and required capabilities.
+- References crossing a chunk boundary must participate in dependency tracking and invalidation.
+- Moving or renaming a chunk must have deterministic effects on identity and caching.
+- Debug information and diagnostics must map page instructions back to the original chunk and source spans.
+- Formatting and documentation tools must preserve chunk identity and valid boundaries.
+
+### Chunk hash and invalidation requirements
+
+The colloquial "chunk hash" must be specified as a reproducible **effective-input hash**, not merely a checksum of visible source text. At minimum, its input model must account for:
+
+- normalized chunk source and compilation-relevant boundary metadata;
+- language edition and compiler version or compiler compatibility identifier;
+- target platform, architecture, ABI, and compilation profile;
+- enabled features, capabilities, optimization settings, and semantic compiler flags;
+- hashes and public interface identities of imported pages;
+- relevant standard-library, package, macro, generated-code, and build-extension inputs;
+- environment values only when explicitly declared as build inputs.
+
+The exact hash algorithm and canonical serialization must be versioned. Cache validity must never depend on timestamps alone. A cryptographic digest should be used where collision resistance or artifact integrity matters.
+
+Invalidation must be dependency-aware: changing a page's private implementation should not force recompilation of dependents when its stable exported interface and required inline/optimization metadata are unchanged. Any optimization that embeds implementation details must record that dependency so stale code cannot be reused.
+
+### Page requirements
+
+A page must contain or reference enough information to:
+
+- identify its chunk, package, version, language edition, target, and compilation profile;
+- verify the effective-input hash and artifact integrity;
+- expose a typed, versioned public interface for resolution without parsing its original source;
+- enumerate dependencies, symbols, capabilities, initialization behavior, and compatibility constraints;
+- link without relying on ambiguous global names or filesystem location;
+- support diagnostics, debugging, profiling, and source mapping;
+- reject incompatible or corrupted artifacts safely;
+- permit deterministic cache eviction and reconstruction from source when source is available.
+
+Pages must be content-addressable or have an equivalent identity scheme that prevents two different artifacts from silently occupying the same identity. Cached pages are derived artifacts, not the authority for source semantics. Loading an untrusted page must be treated like loading untrusted object code and must pass validation appropriate to its trust boundary.
+
+The compiler must define whether a page stores native code, portable bytecode, intermediate representation, or a layered combination. That choice must not weaken the semantic guarantees of the source language.
+
+### Package requirements
+
+- A package must declare its identity, version, exported page names, dependencies, supported targets, language editions, and integrity metadata.
+- The resolver must discover the transitive set of pages actually referenced by the entry program while detecting missing, ambiguous, incompatible, and cyclic relationships.
+- Page references must use stable qualified identities rather than source-order indexes or incidental paths.
+- Unused pages should not be linked into a program unless required by declared initialization or reflection semantics.
+- Package initialization must be explicit, ordered deterministically, and included in dependency analysis.
+- Cycles must either be rejected with an actionable dependency trace or governed by fully specified initialization semantics.
+- Package sources and precompiled pages must have clear precedence and verification rules.
+- Resolution must be reproducible from the package manifest, lockfile, target configuration, and declared inputs.
+
+### Book requirements
+
+A book is an immutable, precompiled execution plan rather than an unrelated second packaging system. It must contain or reference:
+
+- the entry point and runtime compilation plan for any loose source;
+- a compact table assigning local reference identifiers to fully qualified page identities;
+- the resolved page dependency graph and deterministic initialization order;
+- expected hashes, versions, targets, interfaces, and compatibility constraints;
+- required runtime, package, capability, and platform metadata;
+- enough information to validate every referenced page before execution.
+
+Books must deduplicate repeated page references through their local reference table. They must fail safely or trigger a clearly defined rebuild when a referenced page no longer satisfies the recorded identity or compatibility constraints. A book must not silently run with a different dependency graph from the one it records.
+
+The format must define whether pages are embedded, stored beside the book, or retrieved from a content-addressed cache. It should support a compact distributable mode and a self-contained mode if both can preserve reproducibility and security. Portability across machines and targets must be explicit rather than assumed.
+
+### Runtime compilation requirements
+
+- Script startup must scan or otherwise identify chunks before compiling loose source.
+- Cache lookup, validation, recompilation, reference resolution, and execution must have deterministic ordering and observable diagnostics.
+- Concurrent processes compiling the same chunk must not corrupt or partially publish a page; cache publication must be atomic.
+- A failed recompilation must not replace the last valid cached artifact, but stale artifacts must not be executed as though they match changed source.
+- Runtime compilation should expose explainable status such as cache hit, cache miss, invalidation reason, compile duration, and selected artifact when diagnostic output is requested.
+- Sandboxed or restricted environments must be able to disable runtime compilation and require a valid book and page set.
+- Runtime compilation permissions, generated native code, temporary files, and executable-memory behavior must be covered by the threat model.
+- The runtime must place bounded limits on cache size, compilation resources, dependency depth, and malformed metadata.
+
 ## Product vision
 
 The language should combine:
@@ -96,6 +204,8 @@ Performance targets must become numeric before implementation milestones are dec
 The language and toolchain must include:
 
 - a module and package system with explicit public APIs;
+- chunks as explicit incremental compilation units and pages as their reusable artifacts;
+- books as compact, validated precompiled execution plans;
 - deterministic dependency resolution and lockfiles for applications;
 - semantic versioning guidance and compatibility checking;
 - a package registry protocol that can support mirrors and private registries;
@@ -194,6 +304,8 @@ The repository should grow into a workspace with boundaries similar to the follo
 |   |-- optimizer/
 |   |-- backend/              # Code generation and target integration
 |   `-- driver/               # Compiler orchestration
+|-- page/                     # Chunk hashing, artifacts, cache, and validation
+|-- book/                     # Precompiled runbook format and reference resolver
 |-- runtime/                  # Runtime support kept separate from compiler logic
 |-- library/
 |   |-- core/                 # Minimal privileged/freestanding library
@@ -292,6 +404,11 @@ Before implementation begins, the project must resolve at least these foundation
 10. How will source evolution, editions, and long-term compatibility work?
 11. Which platforms form the initial support matrix?
 12. How will the project measure success against existing languages and workflows?
+13. What exact row syntax opens and closes a named chunk, and may chunks nest?
+14. Which inputs form a chunk's effective hash and which changes invalidate dependent pages?
+15. What executable representation, interface metadata, and source maps does a page contain?
+16. Are book references embedded, adjacent, cache-addressed, or supported in multiple distribution modes?
+17. What are the trust, signing, sandboxing, and portability rules for pages and books?
 
 ## Delivery roadmap
 
@@ -300,6 +417,7 @@ Before implementation begins, the project must resolve at least these foundation
 - Define target users, use cases, non-goals, and measurable success criteria.
 - Draft the lexical grammar, core syntax, semantic model, and representative example programs.
 - Prototype the highest-risk choices: parser, type system, memory model, execution strategy, and FFI.
+- Specify chunk boundaries and prototype hashing, page invalidation, package discovery, and book reference-table behavior.
 - Establish ADR and language-proposal templates.
 - Select the implementation stack only after experiments expose its tradeoffs.
 
@@ -308,6 +426,7 @@ Before implementation begins, the project must resolve at least these foundation
 - Implement source loading, lexer, parser, syntax tree, diagnostics, name resolution, and type checking.
 - Support functions, local state, control flow, basic data types, modules, and deterministic errors.
 - Execute a deliberately small Turing-complete subset.
+- Compile chunks into locally cached pages, recompile changed chunks safely, and runtime-compile loose source.
 - Publish an executable specification and conformance tests for the subset.
 
 ### Phase 2: Usable toolchain
@@ -315,6 +434,7 @@ Before implementation begins, the project must resolve at least these foundation
 - Add the package/build workflow, formatter, test runner, documentation generator, and language server basics.
 - Implement the selected memory/resource model and core concurrency foundations.
 - Establish C interoperability and multi-platform CI.
+- Add package-level page resolution and a first versioned book format with reproducible reference maps.
 - Begin compatibility, fuzzing, and performance dashboards.
 
 ### Phase 3: Ecosystem preview
@@ -340,6 +460,8 @@ Version 1.0 is complete only when all of the following are true:
 - safe programs cannot invoke undefined behavior through stable language or library APIs;
 - the compiler and standard library pass the published conformance suite;
 - formatter output and package resolution are deterministic;
+- chunk invalidation is complete, minimal where promised, explainable, and covered by conformance tests;
+- page and book formats are versioned, integrity-checked, safely parsed, and reproducibly generated;
 - the CLI covers the full edit-build-run-test-debug-package workflow;
 - supported platforms have automated testing and documented installation and debugging paths;
 - representative programs meet published startup, compile-time, memory, and runtime targets;
@@ -371,3 +493,48 @@ Until foundational decisions are recorded, this project will not:
 ## Status
 
 **Pre-implementation / requirements discovery.** The current README is a design charter and product checklist. Requirements will become more precise as proposals and experiments supply evidence.
+
+## First syntax experiment
+
+The first executable experiment uses `.the` source files, line-local `@labels`,
+explicit `-> @label` jumps, and paired identical `PAGE name` rows. The
+draft and its deliberately small primitive vocabulary are in
+`docs/design/surface-syntax-0.md`.
+
+Scheduled degradation is written only when fallbacks exist: `PAGE name 1 OF 3`.
+Version 1 is preferred; later versions are capability fallbacks.
+Color output renders scheduled titles on a green-to-red gradient.
+
+### Surface operations
+
+| Operation | Purpose |
+|---|---|
+| `PAGE name ... PAGE name` | Identical rows bound a named compilation page. |
+| `PROC name` / `PROC name(args)` | Declares a procedure, The's function unit. |
+| `RUN x through (a, b)` | Hits an inclusive integer range, including both endpoints. |
+| `ITER x IN values` | Visits values supplied by an iterable. |
+| `LOOP (condition)` | Repeats while a condition remains true. |
+| `LIST[Type]` | Declares a contiguous typed list; `[]` is a list literal. |
+| `OBJ name = value` | Creates a mutable local variable with an inferred type. |
+| `OUT(values)` | Writes values to standard output. |
+| `RETURN value` | Returns from the current procedure. |
+| `IF (condition)` / `ELSE` | Selects a branch. |
+| `MATCH (value)` | Performs exhaustive value selection. |
+| `STOP` / `NEXT` | Stops a loop or advances to its next hit. |
+| `USE name` | Imports a page or package interface. |
+| `RAW [...]` | Opens an auditable low-level/unsafe region. |
+
+Matched `()` and `[]` may be inline or expanded across lines. Newlines end only
+complete statements; semicolons and JavaScript-style closing punctuation are not
+required.
+
+Build and run the dependency-free C11 structural linter with:
+
+```text
+cc -std=c11 -Wall -Wextra -Werror tools/linter/the_lint.c -o the-lint
+./the-lint examples/prime_numbers.the
+```
+
+Pass `--color` to highlight PAGE boundaries, line labels, jumps, and comments.
+This prototype validates PAGE, delimiter, operation, and line-reference structure. It does not yet
+parse, type-check, compile, or execute The programs.

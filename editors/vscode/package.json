@@ -1,0 +1,21 @@
+{
+  "name": "the-language",
+  "displayName": "The Language",
+  "version": "0.0.1",
+  "publisher": "the-language",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [{
+      "id": "the",
+      "aliases": ["The", "the"],
+      "extensions": [".the"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "the",
+      "scopeName": "source.the",
+      "path": "./syntaxes/the.tmLanguage.json"
+    }]
+  }
+}

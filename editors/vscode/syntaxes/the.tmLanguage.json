@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "The",
+  "scopeName": "source.the",
+  "patterns": [
+    { "include": "#comments" },
+    { "match": "^PAGE\\s+[A-Za-z_][A-Za-z0-9_]*(?:\\s+\\d+\\s+OF\\s+\\d+)?", "name": "entity.name.section.page.the" },
+    { "match": "\\b(PROC|ITER|LOOP|RUN|OBJ|PAGE|RETURN|IF|ELSE|MATCH|STOP|NEXT|USE|RAW|OUT|IN|OF|through)\\b", "name": "keyword.control.the" },
+    { "match": "\\b(BOOL|BYTE|CHAR|INT|UINT|FLOAT|STRING|LIST|RESULT|OPTION|VOID)\\b", "name": "storage.type.the" },
+    { "match": "\\b(TRUE|FALSE|NONE)\\b", "name": "constant.language.the" },
+    { "match": "@[A-Za-z_][A-Za-z0-9_]*", "name": "entity.name.label.the" },
+    { "match": "\\b(?:0[xX][0-9A-Fa-f]+|0[bB][01]+|[0-9]+(?:\\.[0-9]+)?)\\b", "name": "constant.numeric.the" },
+    { "begin": "\"", "end": "\"", "name": "string.quoted.double.the", "patterns": [{ "match": "\\\\.", "name": "constant.character.escape.the" }] },
+    { "begin": "'", "end": "'", "name": "string.quoted.single.the", "patterns": [{ "match": "\\\\.", "name": "constant.character.escape.the" }] }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "begin": "\\|\\|", "end": "\\|\\|", "name": "comment.block.the" },
+        { "begin": "\\|", "end": "$", "name": "comment.line.the" }
+      ]
+    }
+  }
+}
