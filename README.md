@@ -1,5 +1,7 @@
 # The
 
+![The](assets/The-Logo.png)
+
 > The language is a new general-purpose programming and scripting language.
 
 This repository will develop a language from its specification and lowest-level runtime foundations through a complete, production-ready toolchain. The language should be fast, extensible, Turing complete, safe by default, precise in its behavior, and pleasant to read and write.

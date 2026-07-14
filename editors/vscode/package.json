@@ -2,6 +2,7 @@
   "name": "the-language",
   "displayName": "The",
   "description": "Language support for The (.the)",
+  "icon": "images/The-Icon.png",
   "version": "0.0.1",
   "publisher": "the-language",
   "engines": { "vscode": "^1.90.0" },

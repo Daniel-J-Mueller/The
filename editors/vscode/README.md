@@ -1,5 +1,7 @@
 # The
 
+![The logo](images/The-Icon.png)
+
 VS Code language support for `.the` source files.
 
 ## Features
