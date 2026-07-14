@@ -1,10 +1,17 @@
 {
   "name": "the-language",
-  "displayName": "The Language",
+  "displayName": "The",
+  "description": "Language support for The (.the)",
   "version": "0.0.1",
   "publisher": "the-language",
   "engines": { "vscode": "^1.90.0" },
-  "categories": ["Programming Languages"],
+  "categories": ["Programming Languages", "Linters"],
+  "keywords": ["the", "language", "linter"],
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Daniel-J-Mueller/The.git"
+  },
   "contributes": {
     "languages": [{
       "id": "the",
@@ -16,6 +23,19 @@
       "language": "the",
       "scopeName": "source.the",
       "path": "./syntaxes/the.tmLanguage.json"
+    }],
+    "problemMatchers": [{
+      "name": "the-lint",
+      "owner": "the",
+      "fileLocation": ["absolute"],
+      "pattern": {
+        "regexp": "^(.*):(\\d+):(\\d+): (E\\d+): (.*)$",
+        "file": 1,
+        "line": 2,
+        "column": 3,
+        "code": 4,
+        "message": 5
+      }
     }]
   }
 }

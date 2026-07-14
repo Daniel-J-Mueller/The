@@ -11,5 +11,15 @@
     { "open": "\"", "close": "\"", "notIn": ["string", "comment"] },
     { "open": "'", "close": "'", "notIn": ["string", "comment"] }
   ],
-  "surroundingPairs": [["[", "]"], ["(", ")"], ["{", "}"], ["\"", "\""], ["'", "'"]]
+  "surroundingPairs": [["[", "]"], ["(", ")"], ["{", "}"], ["\"", "\""], ["'", "'"]],
+  "folding": {
+    "markers": {
+      "start": "^\\s*(?:PAGE |PROC |ITER |IF\\b|LOOP\\b)",
+      "end": "^\\s*(?:PAGEEND|PROCEND|ITEREND|IFEND|LOOPEND)\\b"
+    }
+  },
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*(?:PAGE |PROC |ITER |IF\\b|LOOP\\b).*$",
+    "decreaseIndentPattern": "^\\s*(?:PAGEEND|PROCEND|ITEREND|IFEND|LOOPEND)\\b"
+  }
 }

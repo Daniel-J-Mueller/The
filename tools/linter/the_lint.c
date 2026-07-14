@@ -21,6 +21,8 @@ typedef struct {
     Name *references;
     char page[NAME_CAP];
     char page_row[ROW_CAP];
+    char proc[NAME_CAP];
+    size_t iter_depth;
     unsigned version;
     unsigned versions;
     bool comment_block;
@@ -221,9 +223,24 @@ static void lint_operation(Linter *linter, const char *cursor, size_t line) {
             diagnostic(linter, line, 1, "E012", "expected RUN name through (first, last)%s", "");
     } else if (operation(cursor, "ITER")) {
         cursor = space(cursor + 4);
-        if (!take_name(&cursor, name) || strncmp((cursor = space(cursor)), "IN ", 3) != 0 ||
-            !*space(cursor + 3))
-            diagnostic(linter, line, 1, "E012", "expected ITER name IN values%s", "");
+        if (!take_name(&cursor, name)) {
+            diagnostic(linter, line, 1, "E012", "expected ITER name and iterator%s", "");
+            return;
+        }
+        cursor = space(cursor);
+        if (strncmp(cursor, "throughint ", 11) == 0) cursor = space(cursor + 11);
+        else if (strncmp(cursor, "throughstride ", 14) == 0) cursor = space(cursor + 14);
+        else if (strncmp(cursor, "in ", 3) == 0) cursor = space(cursor + 3);
+        else {
+            diagnostic(linter, line, 1, "E012", "unknown ITER form for %s", name);
+            return;
+        }
+        if (!*cursor)
+            diagnostic(linter, line, 1, "E012", "ITER has no input for %s", name);
+    } else if (operation(cursor, "PUT")) {
+        cursor = space(cursor + 3);
+        if (!take_name(&cursor, name) || strncmp((cursor = space(cursor)), "into ", 5) != 0)
+            diagnostic(linter, line, 1, "E012", "expected PUT value into target%s", "");
     }
 }
 
@@ -258,21 +275,53 @@ static bool lint_row(Linter *linter, const char *row, size_t line) {
     }
     if (*cursor == '|') return true;
 
+    if (operation(cursor, "PAGEEND")) {
+        cursor = space(cursor + 7);
+        if (!take_name(&cursor, name) || !row_end(cursor))
+            diagnostic(linter, line, 1, "E005", "expected PAGEEND name%s", "");
+        else if (!linter->page[0] || strcmp(name, linter->page) != 0)
+            diagnostic(linter, line, 1, "E001", "PAGEEND does not match PAGE %s",
+                       linter->page[0] ? linter->page : name);
+        else if (linter->proc[0])
+            diagnostic(linter, line, 1, "E013", "PAGE ended inside PROC %s", linter->proc);
+        else {
+            resolve(linter);
+            linter->page[0] = linter->page_row[0] = '\0';
+            linter->version = linter->versions = 0;
+        }
+        return true;
+    }
+
+    if (operation(cursor, "PROCEND") || strcmp(cursor, "PROCEND\n") == 0 || strcmp(cursor, "PROCEND") == 0) {
+        if (!linter->proc[0]) diagnostic(linter, line, 1, "E013", "PROCEND without PROC%s", "");
+        else if (linter->iter_depth) diagnostic(linter, line, 1, "E013", "PROC ended inside ITER %s", linter->proc);
+        else linter->proc[0] = '\0';
+        return true;
+    }
+
+    if (operation(cursor, "ITEREND") || strcmp(cursor, "ITEREND\n") == 0 || strcmp(cursor, "ITEREND") == 0) {
+        if (!linter->iter_depth) diagnostic(linter, line, 1, "E013", "ITEREND without ITER%s", "");
+        else linter->iter_depth--;
+        return true;
+    }
+
+    if (operation(cursor, "PROC")) {
+        const char *declaration = space(cursor + 4);
+        if (!take_name(&declaration, name))
+            diagnostic(linter, line, 1, "E012", "expected PROC name%s", "");
+        else if (linter->proc[0])
+            diagnostic(linter, line, 1, "E013", "nested PROC %s", name);
+        else memcpy(linter->proc, name, strlen(name) + 1);
+        return true;
+    }
+
     if (strncmp(row, "PAGE", 4) == 0 || strncmp(cursor, "PAGE", 4) == 0) {
         if (!boundary(row, &mark)) {
             diagnostic(linter, line, 1, "E005", "PAGE row must begin exactly 'PAGE ' and contain a valid identifier%s", "");
             return true;
         }
         if (linter->page[0]) {
-            char current[ROW_CAP];
-            copy_row(current, row);
-            if (strcmp(current, linter->page_row) != 0)
-                diagnostic(linter, line, 1, "E001", "PAGE close differs from opening PAGE %s", linter->page);
-            else {
-                resolve(linter);
-                linter->page[0] = linter->page_row[0] = '\0';
-                linter->version = linter->versions = 0;
-            }
+            diagnostic(linter, line, 1, "E002", "nested PAGE %s", mark.name);
         } else {
             Name *collision;
             resolve(linter);
@@ -294,6 +343,8 @@ static bool lint_row(Linter *linter, const char *row, size_t line) {
         }
         return true;
     }
+
+    if (operation(cursor, "ITER")) linter->iter_depth++;
 
     if (*cursor == '@') {
         cursor++;
@@ -364,6 +415,10 @@ static int lint_file(const char *path, bool color) {
     fclose(file);
     if (linter.page[0])
         diagnostic(&linter, line ? line : 1, 1, "E001", "unclosed PAGE %s", linter.page);
+    if (linter.proc[0])
+        diagnostic(&linter, line ? line : 1, 1, "E013", "unclosed PROC %s", linter.proc);
+    if (linter.iter_depth)
+        diagnostic(&linter, line ? line : 1, 1, "E013", "unclosed ITER blocks%s", "");
     if (linter.comment_block)
         diagnostic(&linter, line ? line : 1, 1, "E008", "unclosed comment block%s", "");
     if (linter.depth)
