@@ -1,9 +1,9 @@
 {
-  "name": "the-language",
+  "name": "the-official-language",
   "displayName": "The",
-  "description": "Language support for The (.the)",
+  "description": "Language support for The (.the, .then).",
   "icon": "images/The-Icon.png",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "publisher": "the-language",
   "engines": { "vscode": "^1.90.0" },
   "categories": ["Programming Languages", "Linters"],
@@ -19,11 +19,20 @@
       "aliases": ["The", "the"],
       "extensions": [".the"],
       "configuration": "./language-configuration.json"
+    }, {
+      "id": "then",
+      "aliases": ["The Compiled Asset", "then"],
+      "extensions": [".then"]
     }],
     "grammars": [{
       "language": "the",
       "scopeName": "source.the",
       "path": "./syntaxes/the.tmLanguage.json"
+    }],
+    "themes": [{
+      "label": "The",
+      "uiTheme": "vs-dark",
+      "path": "./themes/the-color-theme.json"
     }],
     "problemMatchers": [{
       "name": "the-lint",
@@ -37,6 +46,28 @@
         "code": 4,
         "message": 5
       }
-    }]
+    }],
+    "configurationDefaults": {
+      "editor.tokenColorCustomizations": {
+        "textMateRules": [
+          {
+            "scope": "constant.numeric.connector.the",
+            "settings": { "foreground": "#EACBA3" }
+          },
+          {
+            "scope": "entity.name.section.position.the",
+            "settings": { "foreground": "#D99A73" }
+          },
+          {
+            "scope": "keyword.declaration.procedure.the",
+            "settings": { "foreground": "#CC2038" }
+          },
+          {
+            "scope": "markup.inserted.position.the",
+            "settings": { "foreground": "#8FBDA8" }
+          }
+        ]
+      }
+    }
   }
 }

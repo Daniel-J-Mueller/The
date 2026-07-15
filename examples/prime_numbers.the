@@ -5,10 +5,10 @@ PROC primes
     OBJ limit = 100
     numbers = [2]
 
-    ITER number throughint (3, limit)
+    ITER number intthrough (3, limit)
         OBJ prime = TRUE
 
-        ITER divisor throughint (2, number - 1)
+        ITER divisor intthrough (2, number - 1)
             IF (number % divisor == 0)
                 prime = FALSE
                 STOP

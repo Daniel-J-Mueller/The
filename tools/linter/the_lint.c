@@ -26,6 +26,7 @@ typedef struct {
     unsigned version;
     unsigned versions;
     bool comment_block;
+    bool line_comment;
     char delimiters[ROW_CAP];
     size_t depth;
     size_t errors;
@@ -176,6 +177,27 @@ static size_t block_marks(const char *row) {
     return count;
 }
 
+static bool truncated(const char *row) {
+    size_t length = strcspn(row, "\r\n");
+    while (length && (row[length - 1] == ' ' || row[length - 1] == '\t')) length--;
+    return length >= 2 && row[length - 1] == '.' && row[length - 2] == '.';
+}
+
+static const char *line_comment(const char *row) {
+    bool quoted = false;
+    char quote = '\0';
+    for (const char *cursor = row; *cursor && *cursor != '\n'; cursor++) {
+        if (quoted) {
+            if (*cursor == '\\' && cursor[1]) cursor++;
+            else if (*cursor == quote) quoted = false;
+            continue;
+        }
+        if (*cursor == '\'' || *cursor == '"') { quoted = true; quote = *cursor; continue; }
+        if (cursor[0] == '|' && cursor[1] != '|') return cursor;
+    }
+    return NULL;
+}
+
 static void lint_delimiters(Linter *linter, const char *row, size_t line) {
     bool quoted = false;
     char quote = '\0';
@@ -228,8 +250,8 @@ static void lint_operation(Linter *linter, const char *cursor, size_t line) {
             return;
         }
         cursor = space(cursor);
-        if (strncmp(cursor, "throughint ", 11) == 0) cursor = space(cursor + 11);
-        else if (strncmp(cursor, "throughstride ", 14) == 0) cursor = space(cursor + 14);
+        if (strncmp(cursor, "intthrough ", 11) == 0) cursor = space(cursor + 11);
+        else if (strncmp(cursor, "stridethrough ", 14) == 0) cursor = space(cursor + 14);
         else if (strncmp(cursor, "in ", 3) == 0) cursor = space(cursor + 3);
         else {
             diagnostic(linter, line, 1, "E012", "unknown ITER form for %s", name);
@@ -238,9 +260,30 @@ static void lint_operation(Linter *linter, const char *cursor, size_t line) {
         if (!*cursor)
             diagnostic(linter, line, 1, "E012", "ITER has no input for %s", name);
     } else if (operation(cursor, "PUT")) {
+        char target[NAME_CAP];
         cursor = space(cursor + 3);
-        if (!take_name(&cursor, name) || strncmp((cursor = space(cursor)), "into ", 5) != 0)
+        if (!take_name(&cursor, name) || strncmp((cursor = space(cursor)), "into ", 5) != 0) {
             diagnostic(linter, line, 1, "E012", "expected PUT value into target%s", "");
+            return;
+        }
+        cursor = space(cursor + 5);
+        if (!take_name(&cursor, target)) {
+            diagnostic(linter, line, 1, "E012", "PUT has no target for %s", name);
+            return;
+        }
+        cursor = space(cursor);
+        if (strncmp(cursor, "at ", 3) == 0) {
+            cursor = space(cursor + 3);
+            if (strncmp(cursor, "end", 3) == 0 && !name_rest(cursor[3])) cursor += 3;
+            else if (strncmp(cursor, "beginning", 9) == 0 && !name_rest(cursor[9])) cursor += 9;
+            else if (strncmp(cursor, "value", 5) == 0 && !name_rest(cursor[5])) cursor += 5;
+            else {
+                diagnostic(linter, line, 1, "E012", "PUT position must be end, beginning, or value for %s", target);
+                return;
+            }
+        }
+        if (!row_end(cursor))
+            diagnostic(linter, line, 1, "E012", "unexpected text after PUT target %s", target);
     }
 }
 
@@ -265,6 +308,11 @@ static bool lint_row(Linter *linter, const char *row, size_t line) {
     char name[NAME_CAP];
     Boundary mark;
 
+    if (linter->line_comment) {
+        linter->line_comment = truncated(row);
+        return true;
+    }
+
     if (linter->comment_block) {
         if (block_marks(row) % 2u) linter->comment_block = false;
         return true;
@@ -272,6 +320,10 @@ static bool lint_row(Linter *linter, const char *row, size_t line) {
     if (cursor[0] == '|' && cursor[1] == '|') {
         if (block_marks(row) % 2u) linter->comment_block = true;
         return true;
+    }
+    {
+        const char *comment = line_comment(row);
+        if (comment && truncated(comment)) linter->line_comment = true;
     }
     if (*cursor == '|') return true;
 
@@ -361,12 +413,12 @@ static bool lint_row(Linter *linter, const char *row, size_t line) {
     return record_references(linter, row, line);
 }
 
-static void highlight(const char *row, size_t line, bool comment_block) {
+static void highlight(const char *row, size_t line, bool comment_block, bool line_continuation) {
     const char *cursor = space(row);
     const char *color = NULL;
     char gradient[32];
     Boundary mark;
-    if (comment_block || (cursor[0] == '|' && cursor[1] == '|') || *cursor == '|') {
+    if (comment_block || line_continuation || (cursor[0] == '|' && cursor[1] == '|') || *cursor == '|') {
         color = "\x1b[90m";
     } else if (boundary(row, &mark) && mark.version && mark.versions) {
         unsigned red = mark.versions == 1 ? 0 : 255u * (mark.version - 1u) / (mark.versions - 1u);
@@ -399,7 +451,7 @@ static int lint_file(const char *path, bool color) {
             while (fgets(row, sizeof(row), file) && !strchr(row, '\n')) {}
             continue;
         }
-        if (color) highlight(row, line, linter.comment_block);
+        if (color) highlight(row, line, linter.comment_block, linter.line_comment);
         if (!lint_row(&linter, row, line)) {
             fprintf(stderr, "%s: allocation failed\n", path);
             fclose(file);
@@ -421,6 +473,8 @@ static int lint_file(const char *path, bool color) {
         diagnostic(&linter, line ? line : 1, 1, "E013", "unclosed ITER blocks%s", "");
     if (linter.comment_block)
         diagnostic(&linter, line ? line : 1, 1, "E008", "unclosed comment block%s", "");
+    if (linter.line_comment)
+        diagnostic(&linter, line ? line : 1, 1, "E014", "line continuation reaches end of file%s", "");
     if (linter.depth)
         diagnostic(&linter, line ? line : 1, 1, "E011", "unclosed delimiter %s",
                    linter.delimiters[linter.depth - 1] == '(' ? "(" :
@@ -431,22 +485,39 @@ static int lint_file(const char *path, bool color) {
 }
 
 int main(int argc, char **argv) {
-    const char *path;
     bool color = false;
-    size_t length;
-    if (argc == 3 && strcmp(argv[1], "--color") == 0) {
+    int first = 1;
+    int result = 0;
+
+    if (argc == 2 && strcmp(argv[1], "--version") == 0) {
+        puts("the-lint 0.1.1");
+        return 0;
+    }
+    if (argc == 2 && (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
+        puts("usage: the-lint [--color] FILE.the [FILE.the ...]");
+        puts("exit 0: clean, 1: diagnostics, 2: invocation or input failure");
+        return 0;
+    }
+    if (first < argc && strcmp(argv[first], "--color") == 0) {
         color = true;
-        path = argv[2];
-    } else if (argc == 2) {
-        path = argv[1];
-    } else {
-        fprintf(stderr, "usage: the-lint [--color] FILE.the\n");
+        first++;
+    }
+    if (first == argc) {
+        fprintf(stderr, "usage: the-lint [--color] FILE.the [FILE.the ...]\n");
         return 2;
     }
-    length = strlen(path);
-    if (length < 4 || strcmp(path + length - 4, ".the") != 0) {
-        fprintf(stderr, "%s: E000: expected .the source\n", path);
-        return 2;
+
+    for (int index = first; index < argc; index++) {
+        const char *path = argv[index];
+        size_t length = strlen(path);
+        int status;
+        if (length < 4 || strcmp(path + length - 4, ".the") != 0) {
+            fprintf(stderr, "%s:1:1: E000: expected .the source\n", path);
+            result = 2;
+            continue;
+        }
+        status = lint_file(path, color);
+        if (status > result) result = status;
     }
-    return lint_file(path, color);
+    return result;
 }

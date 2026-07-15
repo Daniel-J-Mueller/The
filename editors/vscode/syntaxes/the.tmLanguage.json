@@ -8,7 +8,7 @@
     {
       "match": "^(PAGE)\\s+([A-Za-z_][A-Za-z0-9_]*)(?:\\s+(\\d+)\\s+(OF)\\s+(\\d+))?",
       "captures": {
-        "1": { "name": "keyword.control.page.the" },
+        "1": { "name": "constant.numeric.page.the" },
         "2": { "name": "entity.name.section.page.the" },
         "3": { "name": "constant.numeric.schedule.the" },
         "4": { "name": "keyword.operator.schedule.the" },
@@ -18,7 +18,7 @@
     {
       "match": "^(PAGEEND)\\s+([A-Za-z_][A-Za-z0-9_]*)",
       "captures": {
-        "1": { "name": "keyword.control.page.end.the" },
+        "1": { "name": "constant.numeric.page.the" },
         "2": { "name": "entity.name.section.page.the" }
       }
     },
@@ -29,6 +29,7 @@
         "2": { "name": "entity.name.function.the" }
       }
     },
+    { "match": "\\bPROCEND\\b", "name": "keyword.declaration.procedure.the" },
     {
       "match": "\\b(ENTRY)\\s+([A-Za-z_][A-Za-z0-9_]*)",
       "captures": {
@@ -36,9 +37,13 @@
         "2": { "name": "entity.name.function.entry.the" }
       }
     },
-    { "match": "\\b(PAGEEND|PROCEND|ITEREND|LOOPEND|IFEND|MATCHEND)\\b", "name": "keyword.control.end.the" },
+    { "match": "\\b(ITEREND|LOOPEND|IFEND|MATCHEND)\\b", "name": "keyword.control.end.the" },
     { "match": "\\b(ITER|LOOP|RUN|PUT|OBJ|RETURN|IF|ELSE|MATCH|STOP|NEXT|USE|RAW|OUT)\\b", "name": "keyword.control.the" },
-    { "match": "\\b(throughint|throughstride|through|into|at|as|in|beginning|end|value)\\b", "name": "keyword.operator.word.the" },
+    { "match": "\\b(intthrough|stridethrough)\\b", "name": "keyword.declaration.procedure.the" },
+    { "match": "\\binto\\b", "name": "constant.numeric.connector.the" },
+    { "match": "\\bat\\b", "name": "entity.name.section.position.the" },
+    { "match": "\\b(end|beginning|value)\\b", "name": "markup.inserted.position.the" },
+    { "match": "\\b(through|as|in)\\b", "name": "keyword.control.the" },
     { "match": "\\b(OPEN)(?=\\.)", "name": "variable.language.scope.the" },
     { "match": "\\.\\.", "name": "punctuation.separator.continuation.the" },
     { "match": "\\b(BOOL|BYTE|CHAR|INT|UINT|FLOAT|STRING|LIST|RESULT|OPTION|VOID)\\b", "name": "storage.type.the" },
@@ -51,7 +56,18 @@
   "repository": {
     "comments": {
       "patterns": [
-        { "begin": "\\|\\|", "end": "\\|\\|", "name": "comment.block.the" },
+        { "match": "\\|\\|.*?\\|\\|", "name": "comment.block.the" },
+        {
+          "begin": "^\\s*\\|\\|\\s*$",
+          "end": "^\\s*\\|\\|\\s*$",
+          "name": "comment.block.the"
+        },
+        {
+          "begin": "\\|(?=[^\\r\\n]*\\.\\.\\s*$)",
+          "end": "(?<!\\.\\.)\\r?\\n",
+          "applyEndPatternLast": true,
+          "name": "comment.line.continued.the"
+        },
         { "begin": "\\|", "end": "$", "name": "comment.line.the" }
       ]
     },

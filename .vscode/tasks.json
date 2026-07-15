@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "The: Lint current file",
+      "type": "process",
+      "command": "${workspaceFolder}/editors/vscode/bin/win32-x64/the-lint.exe",
+      "args": ["${file}"],
+      "problemMatcher": "$the-lint",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "clear": true,
+        "reveal": "silent",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "The: Lint examples",
+      "type": "process",
+      "command": "${workspaceFolder}/editors/vscode/bin/win32-x64/the-lint.exe",
+      "args": [
+        "${workspaceFolder}/examples/iters_and_strides.the",
+        "${workspaceFolder}/examples/prime_numbers.the"
+      ],
+      "problemMatcher": "$the-lint",
+      "group": "test"
+    }
+  ]
+}

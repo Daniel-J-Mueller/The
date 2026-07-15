@@ -20,6 +20,22 @@ OBJ point = (
 
 Both forms are identical. Blank and comment-only lines have no execution effect.
 
+`..` at the end of a physical line truncates that line boundary. The scanner
+removes `..`, the newline, and indentation on the following physical line, then
+continues scanning as though the characters had been written together:
+
+```the
+long_identi..
+    fier
+
+| one logical comment..
+    still the same comment
+```
+
+These scan identically to `long_identifier` and
+`| one logical comment still the same comment`. Line truncation applies before
+tokenization, so it cannot terminate a string, identifier, expression, or comment.
+
 `|` begins a line comment. `||` opens and closes a comment block:
 
 ```the
