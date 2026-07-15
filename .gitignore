@@ -1,0 +1,6 @@
+*.then
+__pycache__/
+*.py[cod]
+benchmarks/results/*.exe
+benchmarks/results/*.obj
+*.obj

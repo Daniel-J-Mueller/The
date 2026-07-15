@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python3 -S "$(dirname "$0")/tools/runtime/the_runtime.py" compile "$@"

@@ -2,7 +2,7 @@
 
 ![The](assets/The-Logo.png)
 
-> The language is a new general-purpose programming and scripting language.
+> The language is a new hybrid-compilation general-purpose programming and scripting language.
 
 *To prevent confusion when referring to The, the most technical way to refer to The is as 'the The Language'.*
 
@@ -516,6 +516,43 @@ the iters_and_strides.the     # validate/reuse the asset and run the source
 `the` does not require a compiled asset. The `.then` format is a portable,
 versioned container with typed IR and optional target-native code slices; its
 initial binary layout is drafted in `docs/design/then-format.md`.
+
+The repository includes reference `the` and `then` launchers for this first
+syntax experiment. From the repository root on POSIX, add it to `PATH` and run:
+
+```text
+PATH="$PWD:$PATH"
+the examples/iters_and_strides.the
+then examples/iters_and_strides.the
+```
+
+On Windows PowerShell, use the included command launchers directly:
+
+```text
+.\the.cmd examples\iters_and_strides.the
+.\then.cmd examples\iters_and_strides.the
+```
+
+An explicitly trusted precompiled asset can be executed directly with
+`the program.then`. This skips source lookup and hash validation for deployment
+and raw-performance measurement. Because current `.then` experiments contain
+host bytecode, direct assets must come from a trusted build; normal
+`the program.the` execution remains the source-authoritative default.
+
+`then` writes the asset beside its source using the `.then` suffix. `the`
+checks the asset's format version and source hash, reuses it when valid, and
+otherwise compiles the authoritative source in memory.
+
+The current experimental backend lowers PAGE procedures to host bytecode. A
+minimal loader executes a compatible, valid asset without importing the source
+parser or compiler. Assets include a host-runtime tag and safely fall back to
+source compilation when moved to an incompatible runtime. This host-bytecode
+slice is an execution experiment; portable typed IR remains the intended stable
+layer beneath future native code slices.
+
+Repeatable runtime comparisons against equivalent Python are documented in
+`docs/performance/runtime-benchmarks.md` and can be rerun with
+`python tools/benchmark_runtime.py`.
 
 Scheduled degradation is written only when fallbacks exist: `PAGE name 1 OF 3`.
 Version 1 is preferred; later versions are capability fallbacks.

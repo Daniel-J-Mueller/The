@@ -1,0 +1,12 @@
+PAGE numeric_loop_large
+PROC main()
+    OBJ total = 0
+    ITER number intthrough(1, 5000000)
+        total = total + number
+    ITEREND
+    RETURN total as result
+PROCEND
+PAGEEND numeric_loop_large
+
+ENTRY main
+OUT result
